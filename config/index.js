@@ -13,6 +13,9 @@ const cookieParser = require("cookie-parser");
 // unless the request if from the same domain, by default express wont accept POST requests
 const cors = require("cors");
 
+// Needed when dealing with req bodies
+const bodyParser = require('body-parser');
+
 const FRONTEND_URL = process.env.ORIGIN || "http://localhost:3000";
 
 // Middleware configuration
@@ -35,4 +38,8 @@ module.exports = (app) => {
   app.use(express.json());
   app.use(express.urlencoded({ extended: false }));
   app.use(cookieParser());
+
+  // Plaid related config
+  app.use(bodyParser.urlencoded({ extended: false }));
+  app.use(bodyParser.json());
 };
