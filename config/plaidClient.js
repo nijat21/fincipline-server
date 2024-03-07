@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Configuration, PlaidApi, Products, PlaidEnvironments } = require('plaid');
+const { Configuration, PlaidApi, PlaidEnvironments } = require('plaid');
 
 const PLAID_CLIENT_ID = process.env.PLAID_CLIENT_ID;
 const PLAID_SECRET = process.env.PLAID_SECRET;

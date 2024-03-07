@@ -52,7 +52,6 @@ router.post('/login', async (req, res, next) => {
         if (email === "" || password === "") {
             return res.status(400).json({ message: 'All fields are mandatory' });
         }
-        console.log('check');
 
         // Find user
         const user = await User.findOne({ email });
@@ -80,6 +79,8 @@ router.post('/login', async (req, res, next) => {
         next(error);
     }
 });
+
+
 
 // When there is already a valid token 
 router.get('/verify', isAuthenticated, (req, res, next) => {

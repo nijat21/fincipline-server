@@ -17,7 +17,13 @@ const userSchema = new Schema(
     name: {
       type: String,
       required: [true, 'Name is required'],
-    }
+    },
+
+    // Save user's bank accounts with their id and token
+    accounts: [{
+      access_token: { type: String, unique: true },
+      item_id: { type: String, unique: true },
+    }],
   },
   {
     // this second object adds extra properties: `createdAt` and `updatedAt`    
