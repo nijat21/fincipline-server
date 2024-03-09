@@ -72,7 +72,7 @@ router.post('/login', async (req, res, next) => {
 
             return res.status(200).json({ authToken });
         } else {
-            return res.status(400).json({ message: "Unable to authenticate user" });
+            return res.status(400).json({ message: "Wrong password" });
         }
     } catch (error) {
         console.log('Error logging in the user', error);

@@ -1,10 +1,11 @@
 const router = require("express").Router();
 const client = require('../config/plaidClient');
-const bcrypt = require('bcryptjs');
+const { encryptWithAes, decryptWithAes } = require('../middleware/crypto.middleware');
+const { saveAccessToken, checkDuplicateAccounts } = require('../middleware/account.middleware');
 const mongoose = require('mongoose');
 const User = require('../models/User.model');
+const Account = require('../models/Account.model');
 
-const saltRounds = 10;
 
 const APP_PORT = process.env.APP_PORT || 8000;
 const PLAID_PRODUCTS = (process.env.PLAID_PRODUCTS || Products.Transactions).split(',');
@@ -45,49 +46,37 @@ router.post('/create_link_token', async (req, res, next) => {
 
 // Route to exchange the Public token to Access token
 router.post('/set_access_token', async (req, res, next) => {
-    const { public_token, user_id } = req.body;
-
-    userId = user_id;
+    const { public_token, user_id, metadata } = req.body;
+    const accounts = metadata.accounts;
 
     if (!public_token) {
         console.log('Public token is missing');
     }
     try {
+        // Check metadata for duplicates before exchanging the token
+        // const isDuplicateAccount = checkDuplicateAccounts(metadata);
+        console.log(metadata);
+
+
+        // Exchange temporary public token to an access token
         const tokenResponse = await client.itemPublicTokenExchange({ public_token: public_token });
         if (!tokenResponse) {
             return res.status(500).json({ message: `Access token couldn't be created` });
         }
-        // res.json({ message: 'Access token created successfully' });
 
         // Encrypt the Access Token
-        const salt = bcrypt.genSaltSync(saltRounds);
-        ACCESS_TOKEN = bcrypt.hashSync(tokenResponse.data.access_token, salt);
+        ACCESS_TOKEN = encryptWithAes(tokenResponse.data.access_token);
         ITEM_ID = tokenResponse.data.item_id;
 
-        // find the current user and save access token in his profile
-        if (!mongoose.Types.ObjectId.isValid(user_id)) {
-            return res.status(400).json({ message: 'User id is not valid. Cannot save the access token.' });
-        }
+        // Save access token in his accounts
+        // Run a loop through accounts and add each one individually to the database
+        accounts.map(async (account) => {
+            const newAccount = await saveAccessToken(res, ACCESS_TOKEN, user_id, metadata, account.mask);
+            // Update the user with the access token
+            await User.findByIdAndUpdate(user_id, { $push: { accounts: newAccount._id } });
+        });
 
-        const updatedUser = await User.findByIdAndUpdate(user_id,
-            {
-                $push: {
-                    accounts: { access_token: ACCESS_TOKEN, item_id: ITEM_ID }
-                }
-            },
-            { new: true }
-        );
-        if (!updatedUser) {
-            return res.status(400).json({ message: 'User id is not valid. Cannot save the access token.' });
-        }
-
-        res.json({ message: 'Access token created.' });
-        console.log(updatedUser);
-        console.log(ITEM_ID);
-        // Invalidate and replace Access token
-        // const invalidateAndReplaceAccessToken = () => {
-
-        // };
+        res.json({ message: 'New account(s) added' });
 
     } catch (error) {
         console.log('Error converting the token', error);
