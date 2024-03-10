@@ -27,6 +27,10 @@ app.use("/api", indexRoutes);
 const plaidRoutes = require('./routes/plaid.routes');
 app.use('/plaid', isAuthenticated, plaidRoutes);
 
+// Account routes
+const accountRoutes = require('./routes/account.routes.js');
+app.use('/api', isAuthenticated, accountRoutes);
+
 // Authentication routes
 const authRoutes = require('./routes/auth.routes.js');
 app.use('/auth', authRoutes);
