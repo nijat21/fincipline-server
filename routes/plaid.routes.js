@@ -66,5 +66,34 @@ router.post('/set_access_token', async (req, res, next) => {
     }
 });
 
+// Retrieve ACH or ETF Auth data for an Item's accounts
+router.get('/auth', async (req, res, next) => {
+    const access_token = decryptWithAes('U2FsdGVkX18WCalmRmSgYxoBKrMCXphzdr48xPZNfM8earL47wYejrJvOreEQLxvD0Emhp…');
+    try {
+        const authResponse = await client.authGet({
+            access_token: access_token
+        });
+        res.status(200).json(authResponse.data);
+        console.log(authResponse.data);
+    } catch (error) {
+        console.log('Error getting auth', error);
+        next(error);
+    }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 module.exports = router;

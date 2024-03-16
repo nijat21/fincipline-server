@@ -80,13 +80,12 @@ router.post('/login', async (req, res, next) => {
     }
 });
 
-
-
 // When there is already a valid token 
-router.get('/verify', isAuthenticated, (req, res, next) => {
+router.get('/verify', isAuthenticated, async (req, res, next) => {
     // if the jwt is valid, the payload gets decoded by the middleware and is made available in req.payload
     console.log("Request payload", req.payload);
-    res.json(req.payload);
+    const user = await User.findById(req.payload._id, { password: 0 });
+    res.json(user);
 });
 
 module.exports = router;

@@ -17,6 +17,7 @@ const userSchema = new Schema(
       type: String,
       required: [true, 'Name is required'],
     },
+    imgUrl: String,
 
     // Save user's bank accounts with their id and token
     accounts: [{ type: Schema.Types.ObjectId, ref: 'Account' }]
