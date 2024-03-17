@@ -49,7 +49,6 @@ const checkAccountDuplicates = async (res, ACCESS_TOKEN, bank_id, user_id, metad
         const accountExists = await Account.findOne({ bank_id, account_mask: account.mask });
         if (accountExists) {
             console.log('Account already exists');
-            res.status(400).json({ message: 'Account already exists' });
         } else {
             // Save access token in his accounts
             const newAccount = await createAccount(res, ACCESS_TOKEN, bank_id, user_id, metadata, account);
@@ -58,7 +57,7 @@ const checkAccountDuplicates = async (res, ACCESS_TOKEN, bank_id, user_id, metad
             // Update the user with the access token
             await Bank.findByIdAndUpdate(bank_id, { $push: { accounts: newAccount._id } });
             // await Bank.findByIdAndUpdate(bank_id, { $push: { accounts: newAccount._id } });
-            res.json({ message: 'New account(s) added' });
+            console.log('New account added');
         }
     };
 };
@@ -81,9 +80,9 @@ const duplicatesCheckAndSave = async (res, user_id, ACCESS_TOKEN, metadata) => {
         checkAccountDuplicates(res, ACCESS_TOKEN, newBank._id, user_id, metadata);
 
         await User.findByIdAndUpdate(user_id, { $push: { banks: newBank._id } });
-        res.json({ message: 'New bank added' });
+        console.log('New bank account added');
     }
-
+    res.json({ message: 'Financial institutions and respective accounts are added' });
 };
 
 
