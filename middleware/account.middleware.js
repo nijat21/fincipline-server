@@ -1,9 +1,10 @@
 const mongoose = require('mongoose');
 const Account = require('../models/Account.model');
 const User = require('../models/User.model');
+const Bank = require('../models/Bank.model');
 
-// Create an account
-const saveAccessToken = async (res, ACCESS_TOKEN, user_id, metadata, account) => {
+// Create a Bank
+const createBank = async (res, ACCESS_TOKEN, user_id, metadata) => {
 
     // Save access token in his accounts
     if (!mongoose.Types.ObjectId.isValid(user_id)) {
@@ -11,7 +12,24 @@ const saveAccessToken = async (res, ACCESS_TOKEN, user_id, metadata, account) =>
     }
 
     // Add a single account
-    const newAccount = await Account.create({ access_token: ACCESS_TOKEN, user_id, institution_name: metadata.institution.name, institution_id: metadata.institution.institution_id, account_mask: account.mask });
+    const newBank = await Bank.create({ access_token: ACCESS_TOKEN, user_id, institution_name: metadata.institution.name, institution_id: metadata.institution.institution_id });
+
+    if (!newBank) {
+        return res.status(400).json({ message: 'User id is not valid. Cannot save the access token.' });
+    }
+    return newBank;
+};
+
+// Create an account
+const createAccount = async (res, ACCESS_TOKEN, bank_id, user_id, metadata, account) => {
+
+    // Save access token in his accounts
+    if (!mongoose.Types.ObjectId.isValid(user_id)) {
+        return res.status(400).json({ message: 'User id is not valid. Cannot save the access token.' });
+    }
+
+    // Add a single account
+    const newAccount = await Account.create({ access_token: ACCESS_TOKEN, user_id, institution_name: metadata.institution.name, institution_id: metadata.institution.institution_id, account_mask: account.mask, bank_id });
 
     if (!newAccount) {
         return res.status(400).json({ message: 'User id is not valid. Cannot save the access token.' });
@@ -19,25 +37,54 @@ const saveAccessToken = async (res, ACCESS_TOKEN, user_id, metadata, account) =>
     return newAccount;
 };
 
-// Check for duplicates and Save in Accounts
-const duplicatesCheckAndSave = async (res, user_id, ACCESS_TOKEN, metadata) => {
-    const accounts = metadata.accounts;
+// Check for accounts' duplicates and create if not a duplicate
+const checkAccountDuplicates = async (res, ACCESS_TOKEN, bank_id, user_id, metadata) => {
+    const accountsResponse = metadata.accounts;
 
-    for (const account of accounts) {
+    if (accountsResponse.length === 0) {
+        return res.status(400).json({ message: 'There is no accounts related to this bank' });
+    }
+    for (const account of accountsResponse) {
         // Check for duplicates
-        const accountExists = await Account.findOne({ user_id, institution_id: metadata.institution.institution_id, account_mask: account.mask });
+        const accountExists = await Account.findOne({ bank_id, account_mask: account.mask });
         if (accountExists) {
             console.log('Account already exists');
-            return res.status(400).json({ message: 'Account already exists' });
+            res.status(400).json({ message: 'Account already exists' });
         } else {
             // Save access token in his accounts
-            const newAccount = await saveAccessToken(res, ACCESS_TOKEN, user_id, metadata, account);
+            const newAccount = await createAccount(res, ACCESS_TOKEN, bank_id, user_id, metadata, account);
+            console.log(newAccount);
+
             // Update the user with the access token
-            await User.findByIdAndUpdate(user_id, { $push: { accounts: newAccount._id } });
+            await Bank.findByIdAndUpdate(bank_id, { $push: { accounts: newAccount._id } });
+            // await Bank.findByIdAndUpdate(bank_id, { $push: { accounts: newAccount._id } });
             res.json({ message: 'New account(s) added' });
         }
     };
 };
 
+// Check for duplicates and save
+const duplicatesCheckAndSave = async (res, user_id, ACCESS_TOKEN, metadata) => {
 
-module.exports = { saveAccessToken, duplicatesCheckAndSave };
+    // Check for bank duplicates and create if not a duplicate
+    const bankExists = await Bank.findOne({ user_id, institution_id: metadata.institution.institution_id });
+    if (bankExists) {
+        console.log('Bank already exists');
+
+        // If bank exists, check if accounts exist for that bank account
+        checkAccountDuplicates(res, ACCESS_TOKEN, bankExists._id, user_id, metadata);
+    } else {
+        const newBank = await createBank(res, ACCESS_TOKEN, user_id, metadata);
+        console.log(newBank);
+
+        // If bank just added, add new accounts
+        checkAccountDuplicates(res, ACCESS_TOKEN, newBank._id, user_id, metadata);
+
+        await User.findByIdAndUpdate(user_id, { $push: { banks: newBank._id } });
+        res.json({ message: 'New bank added' });
+    }
+
+};
+
+
+module.exports = { duplicatesCheckAndSave };

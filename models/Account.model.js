@@ -3,6 +3,7 @@ const { Schema, model } = require('mongoose');
 const accountSchema = new Schema(
     {
         access_token: { type: String },
+        bank_id: { type: Schema.Types.ObjectId, ref: 'Bank' },
         user_id: { type: Schema.Types.ObjectId, ref: 'User' },
         institution_name: { type: String },
         institution_id: { type: String },

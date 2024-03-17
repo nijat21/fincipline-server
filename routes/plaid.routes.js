@@ -1,7 +1,7 @@
 const router = require("express").Router();
 const client = require('../config/plaidClient');
 const { encryptWithAes, decryptWithAes } = require('../middleware/crypto.middleware');
-const { saveAccessToken, duplicatesCheckAndSave } = require('../middleware/account.middleware');
+const { duplicatesCheckAndSave } = require('../middleware/account.middleware');
 // Plaid variables
 const APP_PORT = process.env.APP_PORT || 8000;
 const PLAID_PRODUCTS = (process.env.PLAID_PRODUCTS || Products.Transactions).split(',');
@@ -42,27 +42,30 @@ router.post('/create_link_token', async (req, res, next) => {
 
 // Route to exchange the Public token to Access token
 router.post('/set_access_token', async (req, res, next) => {
+
     const { public_token, user_id, metadata } = req.body;
 
     if (!public_token) {
         console.log('Public token is missing');
         return res.status(400).json({ message: 'Public token is missing' });
-    }
-    try {
-        // Exchange temporary public token to an access token
-        const tokenResponse = await client.itemPublicTokenExchange({ public_token: public_token });
-        if (!tokenResponse) {
-            return res.status(500).json({ message: `Access token couldn't be created` });
-        } else {
-            // Encrypt the Access Token
-            ACCESS_TOKEN = encryptWithAes(tokenResponse.data.access_token);
+    } else {
+        try {
+            // Exchange temporary public token to an access token
+            const tokenResponse = await client.itemPublicTokenExchange({ public_token: public_token });
+            if (!tokenResponse) {
+                return res.status(500).json({ message: `Access token couldn't be created` });
+            } else {
+                // Encrypt the Access Token
+                ACCESS_TOKEN = encryptWithAes(tokenResponse.data.access_token);
 
-            // Check metadata for duplicates before saving the token
-            await duplicatesCheckAndSave(res, user_id, ACCESS_TOKEN, metadata);
+                // Check metadata for duplicates before saving the token
+                // console.log(metadata);
+                await duplicatesCheckAndSave(res, user_id, ACCESS_TOKEN, metadata);
+            }
+        } catch (error) {
+            console.log('Error converting the token', error);
+            next(error);
         }
-    } catch (error) {
-        console.log('Error converting the token', error);
-        next(error);
     }
 });
 
