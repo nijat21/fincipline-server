@@ -29,7 +29,11 @@ const createAccount = async (res, ACCESS_TOKEN, bank_id, user_id, metadata, acco
     }
 
     // Add a single account
-    const newAccount = await Account.create({ access_token: ACCESS_TOKEN, user_id, institution_name: metadata.institution.name, institution_id: metadata.institution.institution_id, account_mask: account.mask, bank_id });
+    const newAccount = await Account.create({
+        access_token: ACCESS_TOKEN, user_id, institution_name: metadata.institution.name,
+        institution_id: metadata.institution.institution_id, account_mask: account.mask, bank_id,
+        acc_type: account.type, acc_subtype: account.subtype
+    });
 
     if (!newAccount) {
         return res.status(400).json({ message: 'User id is not valid. Cannot save the access token.' });

@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const fileUploader = require('../config/cloudinary.config');
 const User = require('../models/User.model');
 const Account = require('../models/Account.model');
+const Bank = require('../models/Bank.model');
 
 // Upload a profile photo
 router.post('/upload', fileUploader.single('file'), (req, res, next) => {
@@ -50,6 +51,7 @@ router.delete('/deleteUser/:user_id', async (req, res, next) => {
             return res.status(400).json({ message: 'Id is not valid' });
         }
         await User.findByIdAndDelete(user_id);
+        await Bank.deleteMany({ user_id: user_id });
         await Account.deleteMany({ user_id: user_id });
         res.json({ message: 'User deleted successfully' });
     } catch (error) {

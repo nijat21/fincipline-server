@@ -8,6 +8,8 @@ const accountSchema = new Schema(
         institution_name: { type: String },
         institution_id: { type: String },
         account_mask: { type: String },
+        acc_type: String,
+        acc_subtype: String
     },
     {
         // this second object adds extra properties: `createdAt` and `updatedAt`    

@@ -11,7 +11,7 @@ const encryptWithAes = (text) => {
 const decryptWithAes = (cipertext) => {
     const bytes = crypto.AES.decrypt(cipertext, passPhrase);
     const originalText = bytes.toString(crypto.enc.Utf8);
-    return originalText;
+    return originalText ? originalText : "Decryption failed";
 };
 
 module.exports = { encryptWithAes, decryptWithAes };
