@@ -1,15 +1,15 @@
 const crypto = require('crypto-js');
 
-const passPhrase = "In a long silent evening comma- next to the ocean comma-.";
+const PASS_PHRASE = process.env.PASS_PHRASE;
 
 // Encrypt with AES 
 const encryptWithAes = (text) => {
-    return crypto.AES.encrypt(text, passPhrase).toString();
+    return crypto.AES.encrypt(text, PASS_PHRASE).toString();
 };
 
 // Decrypt
 const decryptWithAes = (cipertext) => {
-    const bytes = crypto.AES.decrypt(cipertext, passPhrase);
+    const bytes = crypto.AES.decrypt(cipertext, PASS_PHRASE);
     const originalText = bytes.toString(crypto.enc.Utf8);
     return originalText ? originalText : "Decryption failed";
 };
