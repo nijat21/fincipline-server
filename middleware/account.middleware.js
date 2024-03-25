@@ -91,20 +91,12 @@ const duplicatesCheckAndSave = async (res, user_id, ACCESS_TOKEN, metadata) => {
 
 // Retrieve access token
 const retrieveAccessToken = async (user_id, bank_id) => {
-    if (!user_id || !bank_id) {
-        console.log(`Neccessary credentials aren't provided`);
-    }
-    try {
-        const bank = await Bank.find({ user_id, _id: bank_id });
-        if (!bank) {
-            console.log(`Couldn't find such a bank`);
-        }
-        return bank.access_token;
-    } catch (error) {
-        console.log('Error retrieving the access token');
-        next(error);
-    }
 
+    const bank = await Bank.findOne({ user_id, _id: bank_id });
+    if (!bank) {
+        console.log(`Couldn't find such a bank`);
+    }
+    return bank.access_token;
 };
 
 

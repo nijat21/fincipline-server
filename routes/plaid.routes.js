@@ -78,15 +78,12 @@ router.post('/set_access_token', async (req, res, next) => {
 
 // Retrieve ACH or ETF Auth data for an Item's accounts
 router.get('/auth/:user_id/:bank_id', async (req, res, next) => {
-    // const access_token1 = "access-sandbox-7c16c007-d3eb-4bbd-8b11-54e5c7467c81s";
     // Get each bank's access token separately and make separate requests
     const { user_id, bank_id } = req.params;
-    console.log("user id and bank id", user_id, bank_id);
-    const response = retrieveAccessToken(user_id, bank_id);
-    console.log(response);
-    const access_token = decryptWithAes(response);
 
     try {
+        const response = await retrieveAccessToken(user_id, bank_id);
+        const access_token = decryptWithAes(response);
         const authResponse = await client.authGet({ access_token });
         res.status(200).json(authResponse.data);
         console.log("Here auth response", authResponse.data);
@@ -97,9 +94,33 @@ router.get('/auth/:user_id/:bank_id', async (req, res, next) => {
 });
 
 
-// Retrieve transactions of banks
-router.get('/transactions', async (req, res, next) => {
+// Retrieve the balance of bank accounts
+router.get('/balance/:user_id/:bank_id', async (req, res, next) => {
+    const { user_id, bank_id } = req.params;
+    if (!user_id || !bank_id) {
+        res.status(400).json({ message: "Required credentials weren't send from frontend" });
+    }
     try {
+        const response = await retrieveAccessToken(user_id, bank_id);
+        const access_token = decryptWithAes(response);
+        const balanceResponse = await client.accountsBalanceGet({ access_token });
+        res.status(200).json(balanceResponse.data);
+    } catch (error) {
+        console.log('Error retrieving the balance', error);
+        res.status(500).json({ message: 'Error retrieving balance' });
+    }
+});
+
+// Retrieve transactions of banks
+router.get('/transactions/:user_id/:bank_id', async (req, res, next) => {
+    const { user_id, bank_id } = req.params;
+    if (!user_id || !bank_id) {
+        res.status(400).json({ message: "Required credentials weren't send from frontend" });
+    }
+    try {
+        const response = await retrieveAccessToken(user_id, bank_id);
+        const access_token = decryptWithAes(response);
+
         // Set cursor to empty to receive all historical updates
         let cursor = null;
 
@@ -112,7 +133,7 @@ router.get('/transactions', async (req, res, next) => {
         // Iterate through each page of new transaction updates for item
         while (hasMore) {
             const request = {
-                access_token: ACCESS_TOKEN,
+                access_token: access_token,
                 cursor: cursor,
             };
             const response = await client.transactionsSync(request);
@@ -124,20 +145,21 @@ router.get('/transactions', async (req, res, next) => {
             hasMore = data.has_more;
             // Update cursor to the next cursor
             cursor = data.next_cursor;
-            prettyPrintResponse(response);
         }
 
         const compareTxnsByDateAscending = (a, b) => (a.date > b.date) - (a.date < b.date);
         // Return the 8 most recent transactions
-        const recently_added = [...added].sort(compareTxnsByDateAscending).slice(-8);
-        response.json({ latest_transactions: recently_added });
+        const sorted_added = [...added].sort(compareTxnsByDateAscending);
+        const sorted_modified = [...modified].sort(compareTxnsByDateAscending);
+        const sorted_removed = [...removed].sort(compareTxnsByDateAscending);
+        res.json({ added_transactions: sorted_added, modified_transactions: sorted_modified, removed_transactions: sorted_removed });
     } catch (error) {
         console.log('Error retrieving the transactions', error);
         next(error);
     }
 });
 
-
+// 
 
 
 
