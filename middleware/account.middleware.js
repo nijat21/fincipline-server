@@ -31,7 +31,7 @@ const createAccount = async (res, ACCESS_TOKEN, bank_id, user_id, metadata, acco
     // Add a single account
     const newAccount = await Account.create({
         access_token: ACCESS_TOKEN, user_id, institution_name: metadata.institution.name,
-        institution_id: metadata.institution.institution_id, account_mask: account.mask, bank_id,
+        institution_id: metadata.institution.institution_id, account_name: account.name, account_mask: account.mask, bank_id,
         acc_type: account.type, acc_subtype: account.subtype
     });
 
@@ -56,7 +56,7 @@ const checkAccountDuplicates = async (res, ACCESS_TOKEN, bank_id, user_id, metad
         } else {
             // Save access token in his accounts
             const newAccount = await createAccount(res, ACCESS_TOKEN, bank_id, user_id, metadata, account);
-            console.log(newAccount);
+            // console.log("New accounts", newAccount);
 
             // Update the user with the access token
             await Bank.findByIdAndUpdate(bank_id, { $push: { accounts: newAccount._id } });
@@ -70,23 +70,21 @@ const checkAccountDuplicates = async (res, ACCESS_TOKEN, bank_id, user_id, metad
 const duplicatesCheckAndSave = async (res, user_id, ACCESS_TOKEN, metadata) => {
 
     // Check for bank duplicates and create if not a duplicate
-    const bankExists = await Bank.findOne({ user_id, institution_id: metadata.institution.institution_id });
+    const bankExists = await Bank.findOne({ user_id, institution_id: metadata.institution.institution_id }).select('-access_token');
     if (bankExists) {
         console.log('Bank already exists');
-
-        // If bank exists, check if accounts exist for that bank account
+        // If bank exists, check add new accounts and return the bank
         checkAccountDuplicates(res, ACCESS_TOKEN, bankExists._id, user_id, metadata);
+        return bankExists;
     } else {
-        const newBank = await createBank(res, ACCESS_TOKEN, user_id, metadata);
-        console.log(newBank);
+        const bankCreated = await createBank(res, ACCESS_TOKEN, user_id, metadata);
+        const newBank = await Bank.findOne({ _id: bankCreated._id }).select('-access_token');
 
-        // If bank just added, add new accounts
+        // If bank just added, add new accounts, update user and return new bank
         checkAccountDuplicates(res, ACCESS_TOKEN, newBank._id, user_id, metadata);
-
         await User.findByIdAndUpdate(user_id, { $push: { banks: newBank._id } });
-        console.log('New bank account added');
+        return newBank;
     }
-    res.json({ message: 'Financial institutions and respective accounts are added' });
 };
 
 // Retrieve access token

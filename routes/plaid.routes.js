@@ -58,19 +58,12 @@ router.post('/set_access_token', async (req, res, next) => {
             } else {
                 // Encrypt the Access Token
                 ACCESS_TOKEN = encryptWithAes(tokenResponse.data.access_token);
-                console.log("Encrypted access token:", ACCESS_TOKEN);
-
-                // Decrypt the Access Token test
-                // const decryptedToken = decryptWithAes(ACCESS_TOKEN);
-                // console.log("Decrypted access token:", decryptedToken);
-
-                // Check metadata for duplicates before saving the token
-                console.log(metadata);
-                await duplicatesCheckAndSave(res, user_id, ACCESS_TOKEN, metadata);
+                const bank = await duplicatesCheckAndSave(res, user_id, ACCESS_TOKEN, metadata);
+                res.status(200).json({ bank, message: "Account successfully added!" });
             }
         } catch (error) {
             console.log('Error converting the token', error);
-            next(error);
+            res.status(500).json({ message: "Error adding the account" });
         }
     }
 });
@@ -147,12 +140,13 @@ router.get('/transactions/:user_id/:bank_id', async (req, res, next) => {
             cursor = data.next_cursor;
         }
 
-        const compareTxnsByDateAscending = (a, b) => (a.date > b.date) - (a.date < b.date);
+        const compareTxnsByDateAscending = (a, b) => (a.date < b.date) - (a.date > b.date);
         // Return the 8 most recent transactions
         const sorted_added = [...added].sort(compareTxnsByDateAscending);
         const sorted_modified = [...modified].sort(compareTxnsByDateAscending);
         const sorted_removed = [...removed].sort(compareTxnsByDateAscending);
-        res.json({ added_transactions: sorted_added, modified_transactions: sorted_modified, removed_transactions: sorted_removed });
+        console.log(sorted_added);
+        res.json({ added_transactions: sorted_added }); //, modified_transactions: sorted_modified, removed_transactions: sorted_removed });
     } catch (error) {
         console.log('Error retrieving the transactions', error);
         next(error);

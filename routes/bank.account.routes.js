@@ -3,6 +3,7 @@ const Account = require('../models/Account.model');
 const Bank = require('../models/Bank.model');
 const mongoose = require('mongoose');
 
+
 // Get all banks the user have
 router.get('/banks/:user_id', async (req, res, next) => {
     const { user_id } = req.params;
@@ -20,7 +21,24 @@ router.get('/banks/:user_id', async (req, res, next) => {
     }
 });
 
-// Get accounts for this user
+// Delete a bank connection
+router.delete('/banks/:bank_id', async (req, res, next) => {
+    const { bank_id } = req.params;
+    try {
+        if (!mongoose.Types.ObjectId.isValid(bank_id)) {
+            return res.status(400).json({ message: 'Id is not valid' });
+        }
+        await Bank.findOneAndDelete({ _id: bank_id });
+        await Account.deleteMany({ bank_id });
+        res.json({ message: 'Bank is successfully deleted' });
+    } catch (error) {
+        console.log('Error deleting the bank', error);
+        next(error);
+    }
+});
+
+
+// Get accounts for this bank
 router.get('/accounts/:bank_id', async (req, res, next) => {
     const { bank_id } = req.params;
     try {
@@ -39,24 +57,9 @@ router.get('/accounts/:bank_id', async (req, res, next) => {
     }
 });
 
-// Delete a bank connection
-router.delete('/banks/:bank_id', async (req, res, next) => {
-    const { _id: bank_id } = req.params;
-    try {
-        if (!mongoose.Types.ObjectId.isValid(_id)) {
-            return res.status(400).json({ message: 'Id is not valid' });
-        }
-        await Bank.findOneAndDelete({ _id });
-        await Account.deleteMany({ bank_id: _id });
-        res.json({ message: 'Bank is successfully deleted' });
-    } catch (error) {
-        console.log('Error deleting the bank', error);
-        next(error);
-    }
-});
 
 // Delete an account
-router.delete('/account/:account_id', async (req, res, next) => {
+router.delete('/accounts/:account_id', async (req, res, next) => {
     const { _id: account_id } = req.params;
 
     try {
