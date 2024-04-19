@@ -1,7 +1,9 @@
 const router = require("express").Router();
 const client = require('../config/plaidClient');
 const { encryptWithAes, decryptWithAes } = require('../middleware/crypto.middleware');
-const { duplicatesCheckAndSave, retrieveAccessToken } = require('../middleware/account.middleware');
+const { duplicatesCheckAndSave, retrieveAccessToken, retrieveTransactions } = require('../middleware/account.middleware');
+const mongoose = require('mongoose');
+const Bank = require('../models/Bank.model');
 // Plaid variables
 const APP_PORT = process.env.APP_PORT || 8000;
 const PLAID_PRODUCTS = (process.env.PLAID_PRODUCTS || Products.Transactions).split(',');
@@ -51,6 +53,7 @@ router.post('/set_access_token', async (req, res, next) => {
         return res.status(400).json({ message: 'Public token is missing' });
     } else {
         try {
+            // console.log("Metadata", metadata);
             // Exchange temporary public token to an access token
             const tokenResponse = await client.itemPublicTokenExchange({ public_token: public_token });
             if (!tokenResponse) {
@@ -67,6 +70,7 @@ router.post('/set_access_token', async (req, res, next) => {
         }
     }
 });
+
 
 
 // Retrieve ACH or ETF Auth data for an Item's accounts
@@ -104,56 +108,54 @@ router.get('/balance/:user_id/:bank_id', async (req, res, next) => {
     }
 });
 
-// Retrieve transactions of banks
+// Retrieve transactions of a specific bank
 router.get('/transactions/:user_id/:bank_id', async (req, res, next) => {
     const { user_id, bank_id } = req.params;
+
     if (!user_id || !bank_id) {
         res.status(400).json({ message: "Required credentials weren't send from frontend" });
     }
     try {
-        const response = await retrieveAccessToken(user_id, bank_id);
-        const access_token = decryptWithAes(response);
-
-        // Set cursor to empty to receive all historical updates
-        let cursor = null;
-
-        // New transaction updates since "cursor"
-        let added = [];
-        let modified = [];
-        // Removed transaction ids
-        let removed = [];
-        let hasMore = true;
-        // Iterate through each page of new transaction updates for item
-        while (hasMore) {
-            const request = {
-                access_token: access_token,
-                cursor: cursor,
-            };
-            const response = await client.transactionsSync(request);
-            const data = response.data;
-            // Add this page of results
-            added = added.concat(data.added);
-            modified = modified.concat(data.modified);
-            removed = removed.concat(data.removed);
-            hasMore = data.has_more;
-            // Update cursor to the next cursor
-            cursor = data.next_cursor;
-        }
-
-        const compareTxnsByDateAscending = (a, b) => (a.date < b.date) - (a.date > b.date);
-        // Return the 8 most recent transactions
-        const sorted_added = [...added].sort(compareTxnsByDateAscending);
-        const sorted_modified = [...modified].sort(compareTxnsByDateAscending);
-        const sorted_removed = [...removed].sort(compareTxnsByDateAscending);
+        const sorted_added = await retrieveTransactions(user_id, bank_id);
         console.log(sorted_added);
         res.json({ added_transactions: sorted_added }); //, modified_transactions: sorted_modified, removed_transactions: sorted_removed });
     } catch (error) {
         console.log('Error retrieving the transactions', error);
         next(error);
     }
+
 });
 
-// 
+// Retrieve all the transactions of user
+router.get('/transactions/:user_id', async (req, res, next) => {
+    const { user_id } = req.params;
+
+    if (!user_id) {
+        res.status(400).json({ message: "user_id wasn't send from frontend" });
+    }
+    try {
+        // Deactivate access token from Plaid
+        // Should loop for each bank
+        const banks = await Bank.find({ user_id: user_id }).populate('accounts');
+
+        let users_transactions = [];
+
+        if (banks.length > 0) {
+            for (const bank of banks) {
+                const bank_id = bank._id;
+                const sorted_added = await retrieveTransactions(user_id, bank_id);
+                users_transactions = [...users_transactions, ...sorted_added];
+                console.log(users_transactions);
+            }
+        }
+
+        res.json({ users_transactions }); //, modified_transactions: sorted_modified, removed_transactions: sorted_removed });
+    } catch (error) {
+        console.log('Error retrieving the transactions', error);
+        next(error);
+    }
+
+});
 
 
 

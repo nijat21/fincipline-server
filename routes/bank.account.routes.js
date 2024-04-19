@@ -12,8 +12,9 @@ router.get('/banks/:user_id', async (req, res, next) => {
         if (!mongoose.Types.ObjectId.isValid(user_id)) {
             return res.status(400).json({ message: 'Id is not valid' });
         }
-        const banks = await Bank.find({ user_id }).populate('accounts');
+        const banks = await Bank.find({ user_id }).populate('accounts').select('-access_token');
         console.log(banks);
+        // WHen returning to client side, ignore access_token **CONFIDENTIAL
         res.status(200).json(banks);
     } catch (error) {
         console.log("Error occurred getting banks");

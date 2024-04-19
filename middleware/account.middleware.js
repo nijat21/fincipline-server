@@ -2,6 +2,8 @@ const mongoose = require('mongoose');
 const Account = require('../models/Account.model');
 const User = require('../models/User.model');
 const Bank = require('../models/Bank.model');
+const client = require('../config/plaidClient');
+const { decryptWithAes } = require('../middleware/crypto.middleware');
 
 // Create a Bank
 const createBank = async (res, ACCESS_TOKEN, user_id, metadata) => {
@@ -30,7 +32,7 @@ const createAccount = async (res, ACCESS_TOKEN, bank_id, user_id, metadata, acco
 
     // Add a single account
     const newAccount = await Account.create({
-        access_token: ACCESS_TOKEN, user_id, institution_name: metadata.institution.name,
+        access_token: ACCESS_TOKEN, user_id, account_id: account.id, institution_name: metadata.institution.name,
         institution_id: metadata.institution.institution_id, account_name: account.name, account_mask: account.mask, bank_id,
         acc_type: account.type, acc_subtype: account.subtype
     });
@@ -56,7 +58,7 @@ const checkAccountDuplicates = async (res, ACCESS_TOKEN, bank_id, user_id, metad
         } else {
             // Save access token in his accounts
             const newAccount = await createAccount(res, ACCESS_TOKEN, bank_id, user_id, metadata, account);
-            // console.log("New accounts", newAccount);
+            console.log("New accounts", newAccount);
 
             // Update the user with the access token
             await Bank.findByIdAndUpdate(bank_id, { $push: { accounts: newAccount._id } });
@@ -97,5 +99,59 @@ const retrieveAccessToken = async (user_id, bank_id) => {
     return bank.access_token;
 };
 
+// Deactivate access token
+const deactivateAccessToken = async (accessToken) => {
+    if (!accessToken) {
+        console.log("Access token not received");
+        return;
+    }
+    await client.itemRemove({ access_token: accessToken });
+};
 
-module.exports = { duplicatesCheckAndSave, retrieveAccessToken };
+// Sorting function
+const compareTxnsByDateAscending = (a, b) => (a.date < b.date) - (a.date > b.date);
+
+// Retrieve transactions 
+const retrieveTransactions = async (user_id, bank_id) => {
+    // Get access_token and decrypt it
+    const response = await retrieveAccessToken(user_id, bank_id);
+    const access_token = decryptWithAes(response);
+
+    // Set cursor to empty to receive all historical updates
+    let cursor = null;
+    let hasMore = true;
+
+    // New transaction updates since "cursor"
+    let added = [];
+    let modified = [];
+    let removed = [];
+
+    // Iterate through each page of new transaction updates for item
+    while (hasMore) {
+        const request = {
+            access_token: access_token,
+            cursor: cursor,
+        };
+        const response = await client.transactionsSync(request);
+        const data = response.data;
+
+        // Add this page of results
+        added = added.concat(data.added);
+        modified = modified.concat(data.modified);
+        removed = removed.concat(data.removed);
+        hasMore = data.has_more;
+
+        // Update cursor to the next cursor
+        cursor = data.next_cursor;
+    }
+
+    // Return the 8 most recent transactions
+    const sorted_added = [...added].sort(compareTxnsByDateAscending);
+    const sorted_modified = [...modified].sort(compareTxnsByDateAscending);
+    const sorted_removed = [...removed].sort(compareTxnsByDateAscending);
+
+    return sorted_added;
+};
+
+
+module.exports = { duplicatesCheckAndSave, retrieveAccessToken, deactivateAccessToken, retrieveTransactions };
