@@ -1,7 +1,7 @@
 const router = require("express").Router();
 const client = require('../config/plaidClient');
 const { encryptWithAes, decryptWithAes } = require('../middleware/crypto.middleware');
-const { duplicatesCheckAndSave, retrieveAccessToken, retrieveTransactions } = require('../middleware/account.middleware');
+const { duplicatesCheckAndSave, retrieveAccessToken, retrieveTransactions, compareTxnsByDateAscending } = require('../middleware/account.middleware');
 const mongoose = require('mongoose');
 const Bank = require('../models/Bank.model');
 // Plaid variables
@@ -116,9 +116,9 @@ router.get('/transactions/:user_id/:bank_id', async (req, res, next) => {
         res.status(400).json({ message: "Required credentials weren't send from frontend" });
     }
     try {
-        const sorted_added = await retrieveTransactions(user_id, bank_id);
-        console.log(sorted_added);
-        res.json({ added_transactions: sorted_added }); //, modified_transactions: sorted_modified, removed_transactions: sorted_removed });
+        const response = await retrieveTransactions(user_id, bank_id);
+        console.log(response);
+        res.json({ added_transactions: response }); //, modified_transactions: sorted_modified, removed_transactions: sorted_removed });
     } catch (error) {
         console.log('Error retrieving the transactions', error);
         next(error);
@@ -137,19 +137,20 @@ router.get('/transactions/:user_id', async (req, res, next) => {
         // Deactivate access token from Plaid
         // Should loop for each bank
         const banks = await Bank.find({ user_id: user_id }).populate('accounts');
-
         let users_transactions = [];
+        let sorted_transactions;
 
         if (banks.length > 0) {
             for (const bank of banks) {
                 const bank_id = bank._id;
                 const sorted_added = await retrieveTransactions(user_id, bank_id);
                 users_transactions = [...users_transactions, ...sorted_added];
-                console.log(users_transactions);
+                sorted_transactions = users_transactions.sort(compareTxnsByDateAscending);
+                // console.log(sorted_transactions);
             }
         }
 
-        res.json({ users_transactions }); //, modified_transactions: sorted_modified, removed_transactions: sorted_removed });
+        res.json({ sorted_transactions }); //, modified_transactions: sorted_modified, removed_transactions: sorted_removed });
     } catch (error) {
         console.log('Error retrieving the transactions', error);
         next(error);

@@ -123,8 +123,8 @@ const retrieveTransactions = async (user_id, bank_id) => {
 
     // New transaction updates since "cursor"
     let added = [];
-    let modified = [];
-    let removed = [];
+    // let modified = [];
+    // let removed = [];
 
     // Iterate through each page of new transaction updates for item
     while (hasMore) {
@@ -137,8 +137,8 @@ const retrieveTransactions = async (user_id, bank_id) => {
 
         // Add this page of results
         added = added.concat(data.added);
-        modified = modified.concat(data.modified);
-        removed = removed.concat(data.removed);
+        // modified = modified.concat(data.modified);
+        // removed = removed.concat(data.removed);
         hasMore = data.has_more;
 
         // Update cursor to the next cursor
@@ -147,10 +147,28 @@ const retrieveTransactions = async (user_id, bank_id) => {
 
     // Return the 8 most recent transactions
     const sorted_added = [...added].sort(compareTxnsByDateAscending);
-    const sorted_modified = [...modified].sort(compareTxnsByDateAscending);
-    const sorted_removed = [...removed].sort(compareTxnsByDateAscending);
+    const edited_sorted_added = addAccountDetails(sorted_added);
+    // const sorted_modified = [...modified].sort(compareTxnsByDateAscending);
+    // const sorted_removed = [...removed].sort(compareTxnsByDateAscending);
 
-    return sorted_added;
+    return edited_sorted_added;
+};
+
+
+// Add account details into each transaction
+const addAccountDetails = async (tranArray) => {
+    if (tranArray.length < 1) {
+        console.log('Empty transactions array to add account details');
+        return;
+    }
+
+    await Promise.all(tranArray.map(async (tran) => {
+        const accountDetails = await Account.findOne({ account_id: tran.account_id }).select('-access_token');
+        // Copying accountDetails into tran object
+        tran.account_details = accountDetails;
+    }));
+
+    return tranArray;
 };
 
 
