@@ -123,7 +123,6 @@ router.get('/transactions/:user_id/:bank_id', async (req, res, next) => {
         console.log('Error retrieving the transactions', error);
         next(error);
     }
-
 });
 
 // Retrieve all the transactions of user
@@ -145,6 +144,7 @@ router.get('/transactions/:user_id', async (req, res, next) => {
                 const bank_id = bank._id;
                 const sorted_added = await retrieveTransactions(user_id, bank_id);
                 users_transactions = [...users_transactions, ...sorted_added];
+                const compareTxnsByDateAscending = (a, b) => (a.date < b.date) - (a.date > b.date);
                 sorted_transactions = users_transactions.sort(compareTxnsByDateAscending);
                 // console.log(sorted_transactions);
             }
@@ -155,7 +155,6 @@ router.get('/transactions/:user_id', async (req, res, next) => {
         console.log('Error retrieving the transactions', error);
         next(error);
     }
-
 });
 
 

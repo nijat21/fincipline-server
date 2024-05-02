@@ -108,8 +108,7 @@ const deactivateAccessToken = async (accessToken) => {
     await client.itemRemove({ access_token: accessToken });
 };
 
-// Sorting function
-const compareTxnsByDateAscending = (a, b) => (a.date < b.date) - (a.date > b.date);
+
 
 // Retrieve transactions 
 const retrieveTransactions = async (user_id, bank_id) => {
@@ -144,9 +143,11 @@ const retrieveTransactions = async (user_id, bank_id) => {
         // Update cursor to the next cursor
         cursor = data.next_cursor;
     }
+    // Sorting function
+    const compareTxnsByDateAscending = (a, b) => (a.date < b.date) - (a.date > b.date);
+    const sorted_added = [...added].sort(compareTxnsByDateAscending);
 
     // Return the 8 most recent transactions
-    const sorted_added = [...added].sort(compareTxnsByDateAscending);
     const edited_sorted_added = addAccountDetails(sorted_added);
     // const sorted_modified = [...modified].sort(compareTxnsByDateAscending);
     // const sorted_removed = [...removed].sort(compareTxnsByDateAscending);
