@@ -1,7 +1,7 @@
 const router = require("express").Router();
 const client = require('../config/plaidClient');
 const { encryptWithAes, decryptWithAes } = require('../middleware/crypto.middleware');
-const { duplicatesCheckAndSave, retrieveAccessToken, retrieveTransactions, compareTxnsByDateAscending } = require('../middleware/account.middleware');
+const { duplicatesCheckAndSave, retrieveAccessToken, retrieveTransactions } = require('../middleware/account.middleware');
 const mongoose = require('mongoose');
 const Bank = require('../models/Bank.model');
 // Plaid variables
@@ -130,7 +130,7 @@ router.get('/transactions/:user_id', async (req, res, next) => {
     const { user_id } = req.params;
 
     if (!user_id) {
-        res.status(400).json({ message: "user_id wasn't send from frontend" });
+        res.status(400).json({ message: "user_id wasn't sent from frontend" });
     }
     try {
         // Deactivate access token from Plaid
@@ -144,10 +144,10 @@ router.get('/transactions/:user_id', async (req, res, next) => {
                 const bank_id = bank._id;
                 const sorted_added = await retrieveTransactions(user_id, bank_id);
                 users_transactions = [...users_transactions, ...sorted_added];
-                const compareTxnsByDateAscending = (a, b) => (a.date < b.date) - (a.date > b.date);
-                sorted_transactions = users_transactions.sort(compareTxnsByDateAscending);
-                // console.log(sorted_transactions);
             }
+            const compareTxnsByDateDescending = (a, b) => (a.date < b.date) - (a.date > b.date);
+            sorted_transactions = users_transactions.sort(compareTxnsByDateDescending);
+            // console.log(sorted_transactions);
         }
 
         res.json({ sorted_transactions }); //, modified_transactions: sorted_modified, removed_transactions: sorted_removed });

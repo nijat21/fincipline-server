@@ -144,8 +144,8 @@ const retrieveTransactions = async (user_id, bank_id) => {
         cursor = data.next_cursor;
     }
     // Sorting function
-    const compareTxnsByDateAscending = (a, b) => (a.date < b.date) - (a.date > b.date);
-    const sorted_added = [...added].sort(compareTxnsByDateAscending);
+    const compareTxnsByDateDescending = (a, b) => (a.date < b.date) - (a.date > b.date);
+    const sorted_added = [...added].sort(compareTxnsByDateDescending);
 
     // Return the 8 most recent transactions
     const edited_sorted_added = addAccountDetails(sorted_added);
