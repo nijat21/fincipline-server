@@ -176,15 +176,25 @@ router.put('/updateUserDetails', async (req, res, next) => {
         if (!mongoose.Types.ObjectId.isValid(user_id)) {
             return res.status(400).json({ message: 'Id is not valid!' });
         }
-        if (!name || !email) {
+        if (!name && !email) {
             return res.status(400).json({ message: `Name and email should be provided for the update!` });
         }
         const user = await User.findById(user_id);
         if (!user) {
             return res.status(400).json({ message: "Provided email in not registered!" });
+        } else if (user.name === name && user.email === email) {
+            return res.status(400).json({ message: "Provided name and email is identical to current ones!" });
         } else {
-            const updatedUser = await User.findByIdAndUpdate(user_id, { name, email }, { new: true });
-            res.json({ email: updatedUser.email, name: updatedUser.name, _id: updatedUser._id });
+            if (!name) {
+                const updatedUser = await User.findByIdAndUpdate(user_id, { email }, { new: true });
+                res.json({ email: updatedUser.email, name: updatedUser.name, _id: updatedUser._id });
+            } else if (!email) {
+                const updatedUser = await User.findByIdAndUpdate(user_id, { name }, { new: true });
+                res.json({ email: updatedUser.email, name: updatedUser.name, _id: updatedUser._id });
+            } else {
+                const updatedUser = await User.findByIdAndUpdate(user_id, { name, email }, { new: true });
+                res.json({ email: updatedUser.email, name: updatedUser.name, _id: updatedUser._id });
+            }
         }
     } catch (error) {
         console.log('Error updating user details', error);
