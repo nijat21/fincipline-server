@@ -1,8 +1,14 @@
 const router = require('express').Router();
 const User = require('../models/User.model');
+const Account = require('../models/Account.model');
+const Bank = require('../models/Bank.model');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const mongoose = require('mongoose');
 const { isAuthenticated } = require('../middleware/jwt.middleware');
+const fileUploader = require('../config/cloudinary.config');
+const { decryptWithAes } = require('../middleware/crypto.middleware');
+const { deactivateAccessToken } = require('../middleware/account.middleware');
 
 const saltRounds = 10;
 
@@ -11,24 +17,24 @@ router.post('/signup', async (req, res, next) => {
 
     try {
         if (email === "" || password === "" || name === "") {
-            return res.status(400).json({ message: "All fields are mandatory" });
+            return res.status(400).json({ message: "All fields are mandatory!" });
         }
 
         // Email validation regex
         const emailRegex = /\b[\w\.-]+@[\w\.-]+\.\w{2,4}\b/;
         if (!emailRegex.test(email)) {
-            return res.status(400).json({ message: 'Provide a valid email address' });
+            return res.status(400).json({ message: 'Provide a valid email address!' });
         }
 
         // Password validation regex
         const passRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[`!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~]).{6,}$/;
         if (!passRegex.test(password)) {
-            return res.status(400).json({ message: 'Password needs to be consisted of at least 6 characters. It must include at least 1 capital letter, 1special character' });
+            return res.status(400).json({ message: 'Password needs to be consisted of at least 6 characters. It must include at least 1 capital letter, 1 special character!' });
         }
 
         const userExists = await User.findOne({ email });
         if (userExists) {
-            return res.status(400).json({ message: 'This email is already registered' });
+            return res.status(400).json({ message: 'This email is already registered!' });
         }
 
         // Password encryption 
@@ -50,7 +56,7 @@ router.post('/login', async (req, res, next) => {
 
     try {
         if (email === "" || password === "") {
-            return res.status(400).json({ message: 'All fields are mandatory' });
+            return res.status(400).json({ message: 'All fields are mandatory!' });
         }
 
         // Find user
@@ -58,7 +64,7 @@ router.post('/login', async (req, res, next) => {
 
         // Check if the user exists 
         if (!user) {
-            return res.status(400).json({ message: "Provided email in not registered" });
+            return res.status(400).json({ message: "Provided email in not registered!" });
         }
 
         const isPasswordCorrect = bcrypt.compareSync(password, user.password);
@@ -72,10 +78,10 @@ router.post('/login', async (req, res, next) => {
 
             return res.status(200).json({ authToken });
         } else {
-            return res.status(400).json({ message: "Wrong password" });
+            return res.status(400).json({ message: "Wrong password!" });
         }
     } catch (error) {
-        console.log('Error logging in the user', error);
+        console.log('Error logging in the user!', error);
         next(error);
     }
 });
@@ -87,5 +93,111 @@ router.get('/verify', isAuthenticated, async (req, res, next) => {
     const user = await User.findById(req.payload._id, { password: 0 });
     res.json(user);
 });
+
+// Upload a profile photo
+router.post('/upload', fileUploader.single('file'), (req, res, next) => {
+    // Save image in cloudinary
+    try {
+        res.status(200).json({ imgUrl: req.file.path });
+    } catch (error) {
+        console.log("Couldn't upload the file!", error);
+        next(error);
+    }
+});
+
+// Update user with imgUrl
+router.put('/updateImg', async (req, res, next) => {
+    const { user_id, imgUrl } = req.body;
+    try {
+        // check if the id passed is a valid value in our Db
+        if (!mongoose.Types.ObjectId.isValid(user_id)) {
+            return res.status(400).json({ message: 'Id is not valid!' });
+        }
+        if (!imgUrl) {
+            return res.status(400).json({ message: 'No image url passed!' });
+        }
+
+        const updatedUser = await User.findByIdAndUpdate(user_id, { imgUrl }, { new: true });
+        if (!updatedUser) {
+            return res.status(404).json({ message: 'User not found!' });
+        }
+        res.json(updatedUser);
+
+    } catch (error) {
+        console.log('Error updating the user photo!', error);
+        next(error);
+    }
+});
+
+// Edit User information => Change email and/or password
+// Update user password
+router.put('/updatePassword', async (req, res, next) => {
+    const { user_id, oldPassword, password } = req.body;
+    try {
+        // check if the id passed is a valid value in our Db
+        if (!mongoose.Types.ObjectId.isValid(user_id)) {
+            return res.status(400).json({ message: 'Id is not valid!' });
+        }
+        if (!oldPassword || !password) {
+            return res.status(400).json({ message: `Password update needs to include old and new passwords!` });
+        }
+        // Validate the old password
+        const user = await User.findOne({ _id: user_id });
+        if (!user) {
+            return res.status(400).json({ message: "Provided email in not registered!" });
+        }
+        const isPasswordCorrect = bcrypt.compareSync(oldPassword, user.password);
+        if (isPasswordCorrect) {
+            // New Password validation regex
+            const passRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[`!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~]).{6,}$/;
+            if (!passRegex.test(password)) {
+                return res.status(400).json({ message: 'Password needs to be consisted of at least 6 characters. It must include at least 1 capital letter, 1 special character!' });
+            }
+            // Password encryption 
+            const salt = bcrypt.genSaltSync(saltRounds);
+            const hashedPass = bcrypt.hashSync(password, salt);
+            // Password update
+            const updatedUser = await User.findByIdAndUpdate(user_id, { password: hashedPass });
+            res.json({ email: updatedUser.email, name: updatedUser.name, _id: updatedUser._id });
+        } else {
+            return res.status(400).json({ message: "Wrong password!" });
+        }
+    } catch (error) {
+        console.log('Error logging in the user!', error);
+        next(error);
+    }
+});
+
+
+// Delete user and all bank accounts
+router.delete('/deleteUser/:user_id', async (req, res, next) => {
+    const { user_id } = req.params;
+    try {
+        if (!mongoose.Types.ObjectId.isValid(user_id)) {
+            return res.status(400).json({ message: 'Id is not valid!' });
+        }
+
+        // Deactivate access token from Plaid
+        // Should loop for each bank
+        const banks = await Bank.find({ user_id: user_id }).populate('accounts');
+
+        if (banks.length > 0) {
+            for (const bank of banks) {
+                const access_token = decryptWithAes(bank.access_token);
+                await deactivateAccessToken(access_token);
+            }
+        }
+
+        await User.findByIdAndDelete(user_id);
+        await Bank.deleteMany({ user_id: user_id });
+        await Account.deleteMany({ user_id: user_id });
+        res.json({ message: 'User deleted successfully!' });
+    } catch (error) {
+        console.log('Error deleting the user!', error);
+        next(error);
+    }
+});
+
+
 
 module.exports = router;
