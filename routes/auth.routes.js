@@ -157,17 +157,40 @@ router.put('/updatePassword', async (req, res, next) => {
             const salt = bcrypt.genSaltSync(saltRounds);
             const hashedPass = bcrypt.hashSync(password, salt);
             // Password update
-            const updatedUser = await User.findByIdAndUpdate(user_id, { password: hashedPass });
+            const updatedUser = await User.findByIdAndUpdate(user_id, { password: hashedPass }, { new: true });
             res.json({ email: updatedUser.email, name: updatedUser.name, _id: updatedUser._id });
         } else {
             return res.status(400).json({ message: "Wrong password!" });
         }
     } catch (error) {
-        console.log('Error logging in the user!', error);
+        console.log('Error updating the password!', error);
         next(error);
     }
 });
 
+// Update name and email
+router.put('/updateUserDetails', async (req, res, next) => {
+    const { user_id, name, email } = req.body;
+    try {
+        // check if the id passed is a valid value in our Db
+        if (!mongoose.Types.ObjectId.isValid(user_id)) {
+            return res.status(400).json({ message: 'Id is not valid!' });
+        }
+        if (!name || !email) {
+            return res.status(400).json({ message: `Name and email should be provided for the update!` });
+        }
+        const user = await User.findById(user_id);
+        if (!user) {
+            return res.status(400).json({ message: "Provided email in not registered!" });
+        } else {
+            const updatedUser = await User.findByIdAndUpdate(user_id, { name, email }, { new: true });
+            res.json({ email: updatedUser.email, name: updatedUser.name, _id: updatedUser._id });
+        }
+    } catch (error) {
+        console.log('Error updating user details', error);
+        next(error);
+    }
+});
 
 // Delete user and all bank accounts
 router.delete('/deleteUser/:user_id', async (req, res, next) => {
