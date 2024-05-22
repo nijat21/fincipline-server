@@ -1,14 +1,18 @@
 const router = require('express').Router();
-const User = require('../models/User.model');
-const Account = require('../models/Account.model');
-const Bank = require('../models/Bank.model');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const mongoose = require('mongoose');
+const axios = require('axios');
+const User = require('../models/User.model');
+const Account = require('../models/Account.model');
+const Bank = require('../models/Bank.model');
 const { isAuthenticated } = require('../middleware/jwt.middleware');
 const fileUploader = require('../config/cloudinary.config');
 const { decryptWithAes } = require('../middleware/crypto.middleware');
 const { deactivateAccessToken } = require('../middleware/account.middleware');
+const client_id = process.env.GOOGLE_CLIENT_ID;
+const client_secret = process.env.GOOGLE_CLIENT_SECRET;
+const redirect_uri = process.env.ORIGIN;
 
 const saltRounds = 10;
 
@@ -83,8 +87,36 @@ router.post('/login', async (req, res, next) => {
     } catch (error) {
         console.log('Error logging in the user!', error);
         next(error);
+        console.log('Error logging in the user!', error);
+        next(error);
     }
 });
+
+
+// Google auth => convert auth code into access token
+router.post('/googleAuth', async (req, res, next) => {
+    const { code } = req.body;
+    const grant_type = 'authorization_code';
+    try {
+        const response = await axios.post('https://oauth2.googleapis.com/token', new URLSearchParams({
+            code,
+            client_id,
+            client_secret,
+            redirect_uri,
+            grant_type
+        }).toString(),
+            {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+            });
+        res.status(200).json(response);
+    } catch (error) {
+        console.log('Error exchanging token for Google login!', error);
+        next(error);
+    }
+});
+
 
 // When there is already a valid token 
 router.get('/verify', isAuthenticated, async (req, res, next) => {
