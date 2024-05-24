@@ -87,8 +87,6 @@ router.post('/login', async (req, res, next) => {
     } catch (error) {
         console.log('Error logging in the user!', error);
         next(error);
-        console.log('Error logging in the user!', error);
-        next(error);
     }
 });
 
