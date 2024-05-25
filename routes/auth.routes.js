@@ -90,24 +90,35 @@ router.post('/login', async (req, res, next) => {
     }
 });
 
+// Generate a random password that complies with regex
+const generateCompliantPassword = () => {
+    const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+    const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const specialCharacters = '`!@#$%^&*()_+-=[]{};:"\\|,.<>/?~';
+    const allCharacters = lowercase + uppercase + specialCharacters;
+
+    const getRandomCharacter = (str) => str[Math.floor(Math.random() * str.length)];
+
+    let password = '';
+    password += getRandomCharacter(lowercase);
+    password += getRandomCharacter(uppercase);
+    password += getRandomCharacter(specialCharacters);
+
+    for (let i = 3; i < 8; i++) {
+        password += getRandomCharacter(allCharacters);
+    }
+
+    return password;
+};
 
 // Google auth => convert auth code into access token
 router.post('/googleAuth', async (req, res, next) => {
-    const { code } = req.body;
-    const grant_type = 'authorization_code';
+    const { google_token } = req.body;
+    console.log("Token received in backend", google_token);
     try {
-        const response = await axios.post('https://oauth2.googleapis.com/token', new URLSearchParams({
-            code,
-            client_id,
-            client_secret,
-            redirect_uri,
-            grant_type
-        }).toString(),
-            {
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-            });
+        // Verify the Google token
+        const response = await axios.get(`https://oauth2.googleapis.com/tokeninfo?id_token=${google_token}`);
+        console.log("Google data", response);
         res.status(200).json(response);
     } catch (error) {
         console.log('Error exchanging token for Google login!', error);

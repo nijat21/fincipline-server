@@ -20,7 +20,9 @@ const userSchema = new Schema(
     imgUrl: String,
 
     // Save user's bank accounts with their id and token
-    banks: [{ type: Schema.Types.ObjectId, ref: 'Bank' }]
+    banks: [{ type: Schema.Types.ObjectId, ref: 'Bank' }],
+
+    isSocialLogin: { type: Boolean, default: false }
   },
   {
     // this second object adds extra properties: `createdAt` and `updatedAt`    
