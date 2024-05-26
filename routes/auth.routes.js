@@ -10,11 +10,20 @@ const { isAuthenticated } = require('../middleware/jwt.middleware');
 const fileUploader = require('../config/cloudinary.config');
 const { decryptWithAes } = require('../middleware/crypto.middleware');
 const { deactivateAccessToken } = require('../middleware/account.middleware');
-const client_id = process.env.GOOGLE_CLIENT_ID;
-const client_secret = process.env.GOOGLE_CLIENT_SECRET;
-const redirect_uri = process.env.ORIGIN;
-
+const { OAuth2Client } = require('google-auth-library');
 const saltRounds = 10;
+// Creating a new client
+const clientId = process.env.GOOGLE_CLIENT_ID;
+const client = new OAuth2Client(clientId);
+
+// Function to generate token to avoid duplication
+const generateAuthToken = (user) => {
+    const payload = { _id: user._id, email: user.email, name: user.name, imgUrl: user.imgUrl };
+    return jwt.sign(payload, process.env.TOKEN_SECRET, {
+        algorithm: 'HS256',
+        expiresIn: '6h'
+    });
+};
 
 router.post('/signup', async (req, res, next) => {
     const { email, password, name } = req.body;
@@ -46,8 +55,9 @@ router.post('/signup', async (req, res, next) => {
         const hashedPass = bcrypt.hashSync(password, salt);
 
         const newUser = await User.create({ email, name, password: hashedPass });
+        const authToken = generateAuthToken(newUser);
 
-        res.json({ email: newUser.email, name: newUser.name, _id: newUser._id });
+        res.json({ authToken });
 
     } catch (error) {
         console.log('Error creating the user', error);
@@ -74,12 +84,7 @@ router.post('/login', async (req, res, next) => {
         const isPasswordCorrect = bcrypt.compareSync(password, user.password);
         if (isPasswordCorrect) {
             // Payload excluding password
-            const payload = { _id: user._id, email: user.email, name: user.name };
-            const authToken = jwt.sign(payload, process.env.TOKEN_SECRET, {
-                algorithm: 'HS256',
-                expiresIn: '6h'
-            });
-
+            const authToken = generateAuthToken(user);
             return res.status(200).json({ authToken });
         } else {
             return res.status(400).json({ message: "Wrong password!" });
@@ -111,21 +116,45 @@ const generateCompliantPassword = () => {
     return password;
 };
 
-// Google auth => convert auth code into access token
+
+// Google login
 router.post('/googleAuth', async (req, res, next) => {
     const { google_token } = req.body;
     console.log("Token received in backend", google_token);
+
     try {
-        // Verify the Google token
-        const response = await axios.get(`https://oauth2.googleapis.com/tokeninfo?id_token=${google_token}`);
-        console.log("Google data", response);
-        res.status(200).json(response);
+        const ticket = await client.verifyIdToken({
+            idToken: google_token,
+            audience: clientId
+        });
+        console.log("Ticket", ticket);
+
+        const payload = ticket.getPayload();
+        const { name, email, picture } = payload;
+
+        // Does user exist? If not, create the user
+        const user = await User.findOne({ email });
+        if (!user) {
+            const randomPassword = generateCompliantPassword();
+            const hashedPassword = bcrypt.hashSync(randomPassword, saltRounds);
+
+            user = await User.create({
+                name,
+                email,
+                password: hashedPassword,
+                imgUrl: picture,
+                isSocialLogin: true
+            });
+        }
+        // Creating a JWT payload
+        const authToken = generateAuthToken(user);
+        return res.status(200).json({ authToken });
+
     } catch (error) {
         console.log('Error exchanging token for Google login!', error);
         next(error);
     }
 });
-
 
 // When there is already a valid token 
 router.get('/verify', isAuthenticated, async (req, res, next) => {
