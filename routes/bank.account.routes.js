@@ -2,7 +2,8 @@ const router = require('express').Router();
 const Account = require('../models/Account.model');
 const Bank = require('../models/Bank.model');
 const mongoose = require('mongoose');
-
+const { decryptWithAes } = require('../middleware/crypto.middleware');
+const { deactivateAccessToken } = require('../middleware/account.middleware');
 
 // Get all banks the user have
 router.get('/banks/:user_id', async (req, res, next) => {
@@ -29,8 +30,16 @@ router.delete('/banks/:bank_id', async (req, res, next) => {
         if (!mongoose.Types.ObjectId.isValid(bank_id)) {
             return res.status(400).json({ message: 'Id is not valid' });
         }
-        await Bank.findOneAndDelete({ _id: bank_id });
-        await Account.deleteMany({ bank_id });
+        // Deactivate access token from Plaid
+        // Should loop for each bank
+        const bank = await Bank.findById(bank_id).populate('accounts');
+        if (bank) {
+            const access_token = decryptWithAes(bank.access_token);
+            await deactivateAccessToken(access_token);
+            await Account.deleteMany({ bank_id });
+            await Bank.findByIdAndDelete(bank_id);
+        }
+
         res.json({ message: 'Bank is successfully deleted' });
     } catch (error) {
         console.log('Error deleting the bank', error);
@@ -58,22 +67,6 @@ router.get('/accounts/:bank_id', async (req, res, next) => {
     }
 });
 
-
-// Delete an account
-router.delete('/accounts/:account_id', async (req, res, next) => {
-    const { _id: account_id } = req.params;
-
-    try {
-        if (!mongoose.Types.ObjectId.isValid(_id)) {
-            return res.status(400).json({ message: 'Id is not valid' });
-        }
-        await Account.findOneAndDelete({ _id });
-        res.json({ message: 'Account deleted successfully' });
-    } catch (error) {
-        console.log('Error deleting the account', error);
-        next(error);
-    }
-});
 
 
 module.exports = router;
