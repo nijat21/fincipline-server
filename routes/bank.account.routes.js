@@ -35,12 +35,12 @@ router.delete('/banks/:bank_id', async (req, res, next) => {
         const bank = await Bank.findById(bank_id).populate('accounts');
         if (bank) {
             const access_token = decryptWithAes(bank.access_token);
+            console.log('Access token', access_token);
             await deactivateAccessToken(access_token);
             await Account.deleteMany({ bank_id });
             await Bank.findByIdAndDelete(bank_id);
+            res.json({ message: 'Bank is successfully deleted' });
         }
-
-        res.json({ message: 'Bank is successfully deleted' });
     } catch (error) {
         console.log('Error deleting the bank', error);
         next(error);
