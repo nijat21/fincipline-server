@@ -48,24 +48,24 @@ router.delete('/banks/:bank_id', async (req, res, next) => {
 });
 
 
-// Get accounts for this bank
-router.get('/accounts/:bank_id', async (req, res, next) => {
-    const { bank_id } = req.params;
-    try {
-        // check if the id passed is a valid value in our Db
-        if (!mongoose.Types.ObjectId.isValid(bank_id)) {
-            return res.status(400).json({ message: 'Id is not valid' });
-        }
-        console.log('Trying to get accounts');
+// // Get accounts for this bank
+// router.get('/accounts/:bank_id', async (req, res, next) => {
+//     const { bank_id } = req.params;
+//     try {
+//         // check if the id passed is a valid value in our Db
+//         if (!mongoose.Types.ObjectId.isValid(bank_id)) {
+//             return res.status(400).json({ message: 'Id is not valid' });
+//         }
+//         console.log('Trying to get accounts');
 
-        const accounts = await Account.find({ bank_id });
-        console.log(accounts);
-        res.status(200).json(accounts);
-    } catch (error) {
-        console.log("Error occurred getting accounts");
-        next(error);
-    }
-});
+//         const accounts = await Account.find({ bank_id });
+//         console.log(accounts);
+//         res.status(200).json(accounts);
+//     } catch (error) {
+//         console.log("Error occurred getting accounts");
+//         next(error);
+//     }
+// });
 
 
 
