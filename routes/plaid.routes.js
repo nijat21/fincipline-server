@@ -5,7 +5,7 @@ const { duplicatesCheckAndSave, retrieveAccessToken, retrieveTransactions } = re
 const mongoose = require('mongoose');
 const Bank = require('../models/Bank.model');
 // Plaid variables
-const APP_PORT = process.env.APP_PORT || 8000;
+// const APP_PORT = process.env.APP_PORT || 8000;
 const PLAID_PRODUCTS = (process.env.PLAID_PRODUCTS || Products.Transactions).split(',');
 const PLAID_COUNTRY_CODES = (process.env.PLAID_COUNTRY_CODES || 'US').split(',');
 const PLAID_REDIRECT_URI = process.env.PLAID_REDIRECT_URI || '';
