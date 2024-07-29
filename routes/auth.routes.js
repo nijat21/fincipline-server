@@ -138,17 +138,22 @@ router.post('/googleAuth', async (req, res, next) => {
             const randomPassword = generateCompliantPassword();
             const hashedPassword = bcrypt.hashSync(randomPassword, saltRounds);
 
-            user = await User.create({
+            const user1 = await User.create({
                 name,
                 email,
                 password: hashedPassword,
                 imgUrl: picture,
                 isSocialLogin: true
             });
+
+            // Creating a JWT payload
+            const authToken = generateAuthToken(user1);
+            return res.status(200).json({ authToken });
+        } else {
+            // Creating a JWT payload
+            const authToken = generateAuthToken(user);
+            return res.status(200).json({ authToken });
         }
-        // Creating a JWT payload
-        const authToken = generateAuthToken(user);
-        return res.status(200).json({ authToken });
 
     } catch (error) {
         console.log('Error exchanging token for Google login!', error);

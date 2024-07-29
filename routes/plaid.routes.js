@@ -2,11 +2,10 @@ const router = require("express").Router();
 const client = require('../config/plaidClient');
 const { encryptWithAes, decryptWithAes } = require('../middleware/crypto.middleware');
 const { duplicatesCheckAndSave, retrieveAccessToken, retrieveTransactions } = require('../middleware/account.middleware');
-const mongoose = require('mongoose');
 const Bank = require('../models/Bank.model');
 // Plaid variables
 // const APP_PORT = process.env.APP_PORT || 8000;
-const PLAID_PRODUCTS = (process.env.PLAID_PRODUCTS || Products.Transactions).split(',');
+const PLAID_PRODUCTS = (process.env.PLAID_PRODUCTS).split(',');
 const PLAID_COUNTRY_CODES = (process.env.PLAID_COUNTRY_CODES || 'US').split(',');
 const PLAID_REDIRECT_URI = process.env.PLAID_REDIRECT_URI || '';
 let ACCESS_TOKEN = '';
@@ -20,7 +19,7 @@ router.post('/create_link_token', async (req, res, next) => {
         if (!user_id || !client_name) {
             return res.status(500).json({ message: `User id and client name should be provided from client.` });
         }
-
+        console.log('Plaid products', PLAID_PRODUCTS);
         const specs = {
             user: {
                 client_user_id: user_id,
